@@ -5,11 +5,20 @@ var express = require('express'),
     app = express(),
     http = require('http').Server(app),
     io = require('socket.io')(http),
-    concat = require('concat-stream');
+    concat = require('concat-stream'),
+    sailthru = require('sailthru-client');
 
+
+var sailClient = sailthru.createSailthruClient(process.env.PROD_CLIENT_KEY, process.env.PROD_CLIENT_SECRET);
 
 var dataPath = process.env.OPENSHIFT_DATA_DIR || './data/';
 app.use(express.static('static'));
+app.use('/sail-api-user', function(req, res) {
+    var email = req.query.email;
+    sailClient.apiGet('user', {id: email}, function(err, sres) {
+        res.send(sres)
+    });
+});
 app.use('/proxy', function(req, res) {
     var url = req.query.url; //validateProxy(req.query.url);
     if (url) {

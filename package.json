@@ -28,7 +28,8 @@
     "express": "== 4.13.4",
     "request": "== 2.57.0",
     "socket.io": "== 1.3.7",
-    "concat-stream": "== 1.5.1"
+    "concat-stream": "== 1.5.1",
+    "sailthru-client" : ""
   },
   "devDependencies": {},
   "bundleDependencies": [],
