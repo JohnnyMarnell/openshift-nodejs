@@ -1,0 +1,165 @@
+<html>
+<head>
+<script src="https://code.jquery.com/jquery-1.12.3.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.11.2/lodash.js"></script>
+<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+<div class="nav">
+    <!-- foo<br>bar<br>baz<br> -->
+</div>
+<div class="site">
+    <iframe></iframe>
+</div>
+<div class="recs">
+    <!-- <div class="rec"><img src=""><a href="#">foo</a></div> -->
+</div>
+
+
+<script>
+    $(function () {
+        var feedId = getParameterByName('feedId', "5720ea981aa3126e748b458c"),
+            src = getParameterByName('rsrc', "foo"),
+            target = getParameterByName('rtarget', "foo"),
+            numRecs = parseInt(getParameterByName('numRecs', "5")),
+            similarityType = getParameterByName('type', "urls"),
+            feedUrl = getParameterByName('feedUrl'),
+
+            sandbox = getParameterByName("sandbox", false), proxyFeed = getParameterByName("proxyFeed", true),
+            sandboxFeed = getParameterByName("sandboxFeed", false),
+            currentPage, feed;
+
+        $(window).on('popstate', function(event) {            
+            // alert('went back to ' + event.originalEvent.state.currentPage);
+            visit(event.originalEvent.state.currentPage);
+        });
+
+        function clickPage() {
+            // window.history.pushState({currentPage: currentPage}, "foo", document.location);
+            // currentPage = $(this).attr('data-pageUrl');
+            visit($(this).attr('data-pageUrl'));
+            return false;
+        }
+
+        function renderNav(feed) {
+            var html = "";
+            $.each(feed.content, function(i, item) {
+                html += '<a href="#" data-pageUrl="' + item.url + '"">'
+                     + item.title
+                      + '</a>';
+            });
+            $('.nav').html(html);
+            $('.nav a').on('click', clickPage);
+        }
+
+        function renderRecs(recs) {
+            var html = !recs || !recs.length ? "<h1>No Results!</h1>" : "";
+            $.each(recs, function(i, rec) {
+                html += '<div class="rec"><img src="'
+                 + rec.images.thumb.url
+                 + '"><a data-pageUrl="' + rec.url + '" href="#">'
+                 + rec.title
+                 + '</a></div>';
+            });
+            $('.recs').html(html);
+            $('.recs a').on('click', clickPage);
+        }
+
+        function visit(pageUrl) {
+            window.history.pushState({currentPage: pageUrl}, "foo", document.location);
+            currentPage = pageUrl;
+            $('iframe').attr('src', '/proxy-replace?url=' + encodeURIComponent(pageUrl) + '&src=' + src + '&target=' + target);
+            $('.recs').html('<h1>Loading Recommendations...</h1>');
+
+            (sandbox && sandboxPersonalizeRecommend || manualRecommend)(pageUrl, numRecs);
+        }
+
+        function manualRecommend(pageUrl, num) {
+            var src = _.filter(feed.content, _.matchesProperty('url', pageUrl))[0], recs = [];
+            if (src) {
+                var srcSims = _.property('similarities.' + similarityType)(src) || {}, srcId = src.sailthru.id;
+                _.each(feed.content, function(item) {
+                    var score = _.property('similarities.' + similarityType + '.' + srcId)(item) ||
+                                srcSims[item.sailthru.id];
+                    if (score) {
+                        item.targetSimilarityScore = score;
+                        recs.push(item);
+                    }
+                });
+                recs.sort(function(lhs, rhs) {
+                    return lhs.targetSimilarityScore - rhs.targetSimilarityScore;
+                });
+                console.log('num recs made', recs.length);
+                recs = recs.slice(-(Math.min(recs.length, num)));
+            }
+            renderRecs(recs);
+        }
+
+        function handleFeed(data) {
+            if (!data) return;
+            if (typeof data == 'string') {
+                feed = JSON.parse(data);
+            } else {
+                feed = data;
+            }
+            if (!feed.feed || !feed.content) {
+                var merged = [];
+                _.each(feed, function(subFeed) {
+                    console.log('merging', subFeed.feed.name, subFeed.content.length);
+                    merged = merged.concat(subFeed.content);
+                })
+                feed = {
+                    content: merged
+                }
+            }
+            renderNav(feed);
+            visit(feed.content[0].url);
+        }
+
+        function loadFeedAndInit() {
+            var url = (sandbox || sandboxFeed) && "testfeed";
+            if (proxyFeed) url = "/proxy?url=" + encodeURIComponent("http://feed.sailthru.com/ws/feed?id=" + feedId);
+            if (feedUrl) url = feedUrl;
+            console.log(url);
+            $.get(url, function(data) {
+                console.log('ok!', data);
+                handleFeed(data);
+            }).done(function() { console.log('done', arguments); })
+                .fail(function(response) {
+                    console.log('technically failed, but didnt really', JSON.parse(response.responseText), arguments)
+                    if (response && response.status == 200 && response.responseText)
+                        handleFeed(response.responseText);
+                }).always(function() { console.log("always", arguments); });
+        }
+        loadFeedAndInit();
+    });
+
+    function getParameterByName(name, defaultVal) {
+        var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+        return (match && decodeURIComponent(match[1].replace(/\+/g, ' '))) || defaultVal;
+    }
+
+
+
+    // kinda old
+    function sandboxPersonalizeRecommend(pageUrl, num) {
+        var url = "http://personalize.sailthru-sb.com:4449/v1/personalize/preview?customer_id=5682cac7bf2d3e453217c622&profileId=56d7619fa21cc30008e4cc96";
+
+        var blockId = getParameterByName('blockId');
+        url += "&blockId=" + blockId;
+        url += "&feedId=" + feedId;
+        url += "&contextKey=" + encodeURIComponent(pageUrl);
+
+        $.ajax({
+            method: 'GET',
+            url: url,
+            success: function(d) {
+                var recs = JSON.parse(d.renderedBlock);
+                renderRecs(recs);
+            }
+        });
+    }
+</script>
+</body>
+</html>

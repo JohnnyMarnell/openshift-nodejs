@@ -1,0 +1,44 @@
+    body {
+        font-family: Helvetica, sans-serif;
+        font-size: 12px;    
+    }
+
+    .nav {
+        box-sizing: border-box;
+        width: 200px; 
+        height: 100vh;
+        overflow-y: scroll;
+        float: left;
+        padding:1em;
+        border-right: solid 1px black;
+    }
+    .nav a {
+        display: block;
+        margin-bottom: 1em;
+    }
+    .nav a:last-child {
+        margin-bottom: 0;
+    }
+    .site {width: calc(100% - 200px); height: calc(100vh - 200px); overflow: hidden; float: left;}
+    iframe {width: 100%; height: 100%; overflow-y: scroll;}
+    .recs {
+        width: calc(100% - 200px);
+        height: 200px;
+        float: right;
+        overflow-y: scroll;
+        overflow-x: scroll;
+        border-top: solid 1px black;
+    }
+
+    .rec {
+        float: left;
+        width: calc(20% - 5px);
+        text-align: center;
+    }
+    .rec a {
+        display: block;
+    }
+    .rec img {
+        width: auto;
+        max-height: 140px;
+    }
