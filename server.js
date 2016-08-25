@@ -15,8 +15,8 @@ app.use('/proxy', function(req, res) {
     if (url) {
         var stream = request({url: url, gzip: true}, function(error, response, body) {
             var data = { url: url, date: new Date(), body: body }
-            fs.appendFile(dataPath + "/proxy.access.log", new Date() + "\t" + url + "\n");
-            fs.appendFile(dataPath + "/proxy.log", JSON.stringify(data) + "\n");
+            //fs.appendFile(dataPath + "/proxy.access.log", new Date() + "\t" + url + "\n");
+            //fs.appendFile(dataPath + "/proxy.log", JSON.stringify(data) + "\n");
         });
         req.pipe(stream).pipe(res);
     }
