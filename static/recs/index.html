@@ -69,7 +69,7 @@
         function visit(pageUrl) {
             window.history.pushState({currentPage: pageUrl}, "foo", document.location);
             currentPage = pageUrl;
-            $('iframe').attr('src', '/proxy-replace?url=' + encodeURIComponent(pageUrl) + '&src=' + src + '&target=' + target);
+            $('iframe').attr('src', '/proxy?url=' + encodeURIComponent(pageUrl) + '&rsrc=' + src + '&rtarget=' + target);
             $('.recs').html('<h1>Loading Recommendations...</h1>');
 
             (sandbox && sandboxPersonalizeRecommend || manualRecommend)(pageUrl, numRecs);

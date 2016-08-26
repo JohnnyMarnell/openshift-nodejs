@@ -9,70 +9,57 @@ var express = require('express'),
     sailthru = require('sailthru-client');
 
 
-var sailClient = sailthru.createSailthruClient(process.env.PROD_CLIENT_KEY, process.env.PROD_CLIENT_SECRET);
-
-var dataPath = process.env.OPENSHIFT_DATA_DIR || './data/';
+//==============================================================
+// Allow express to serve any static html css js etc, awesome
+//==============================================================
 app.use(express.static('static'));
+
+
+//==============================================================
+// Simple proxy to ST API client requests
+//==============================================================
+var sailClient = sailthru.createSailthruClient(process.env.PROD_CLIENT_KEY, process.env.PROD_CLIENT_SECRET);
 app.use('/sail-api-user', function(req, res) {
     var email = req.query.email;
     sailClient.apiGet('user', {id: email}, function(err, sres) {
         res.send(sres)
     });
 });
+
+//=======================================================================
+// Get around annoying XOR constraints by just proxying, also allow
+// RegEx replace (that's how I get JetFab pages to look correct, have to
+// hack around they're stuff because they don't support iframage)
+//=======================================================================
 app.use('/proxy', function(req, res) {
-    var url = req.query.url; //validateProxy(req.query.url);
+    var url = req.query.url; //validateProxy(req.query.url); //should really white/blacklist this stuff
     if (url) {
         var stream = request({url: url, gzip: true}, function(error, response, body) {
             var data = { url: url, date: new Date(), body: body }
-            //fs.appendFile(dataPath + "/proxy.access.log", new Date() + "\t" + url + "\n");
-            //fs.appendFile(dataPath + "/proxy.log", JSON.stringify(data) + "\n");
+            if (req.query.rsrc) {
+                body = body.replace(new RegExp(req.query.rsrc, "ig"), req.query.rtarget);
+            }
+            res.send(body)
         });
-        req.pipe(stream).pipe(res);
     }
     else res.send("Denied");
 });
-app.get("/proxy-replace", function (req, res) {
-    var write = concat(function(response) {
-        if (req.query.src && response) {
-            response = response.toString().replace(new RegExp(req.query.src, "ig"), req.query.target);
-        }
-        res.end(response);
-    });
 
-    request.get(req.query.url)
-        .on('response',
-            function (response) {
-                res.writeHead(response.statusCode, response.headers);
-            }
-        ).pipe(write);
-});
 
-var chatio = io.of('/chat');
-chatio.on('connection', function(socket){
-    socket.on('chat message', function(msg){
-        chatio.emit('chat message', msg);
-    });
-});
-var lyricsio = io.of('/lyrics'), lastData;
-lyricsio.on('connection', function(socket) {
-    console.log('new connection!');
-    if (lastData) {
-        socket.emit('receive song data', lastData);
-    }
-    socket.on('send song data', function(data) {
-        // console.log('received song');
-        // console.dir(data);
-        var parsed = {
-            date: new Date(),
-            data: JSON.parse(data.content)
-        };
-        fs.appendFile(dataPath + "/query.log", new Date() + "\t" + parsed.data.query + "\n");
-        fs.appendFile(dataPath + "/song.log", JSON.stringify(parsed) + "\n");
-        lastData = data;
-        lyricsio.emit('receive song data', lastData);
-    });
-});
 
+
+
+
+
+
+
+
+
+
+//============================================================
+// OpenShift hosting bootstrap code, unimportant
+//============================================================
+var dataPath = process.env.OPENSHIFT_DATA_DIR || './data/';
 function die(sig) {
     if (typeof sig === "string") {
         console.log('%s: Received %s - terminating app ...',
